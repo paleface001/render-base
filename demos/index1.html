@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>engine-base test</title>
+  <script id="2d-vertex-shader" type="x-shader/x-vertex">
+    precision mediump float;
+    attribute vec2 a_position;
+    attribute vec3 a_color;
+    uniform vec2 u_resolution;
+    varying vec3 vColor;
+    void main(){
+      vColor = a_color;
+      vec2 zeroToOne = a_position / u_resolution;
+      vec2 zeroToTwo = zeroToOne * 2.0;
+      vec2 clipSpace = zeroToTwo - 1.0;
+      gl_Position = vec4(clipSpace, 0.0, 1.0);
+    }
+  </script>
+  <script id="2d-fragment-shader" type="x-shader/x-fragment">
+    precision mediump float;
+    varying vec3 vColor;
+    void main(){
+      gl_FragColor = vec4(vColor.r,vColor.g,vColor.b,0.5);
+    }
+  </script>
+</head>
+<body>
+<canvas id="canvas" width=600 height=600></canvas>
+</body>
+<script src="../build/engine-base.js"></script>
+<script>
+const rectNum = 20;
+const canvasWidth = 600.0;
+const canvasHeight = 600.0;
+
+const canvas = document.getElementById("canvas");
+const gl = canvas.getContext("webgl");
+gl.enable(gl.BLEND);
+gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+//创建位置数据buffer
+const positionData = createRects();
+const positionBuffer = new EngineBase.Buffer(gl,{
+  target: gl.ARRAY_BUFFER,
+  data: positionData,
+  usage: gl.STATIC_DRAW
+});
+
+//创建颜色数据buffer
+const colorData = createColors();
+const colorBuffer = new EngineBase.Buffer(gl,{
+  target: gl.ARRAY_BUFFER,
+  data: colorData,
+  usage: gl.STATIC_DRAW
+});
+
+//vertex shader
+const vertex_source =  document.getElementById("2d-vertex-shader").textContent;
+const vertexShader = new EngineBase.Shader(gl,{
+  type: gl.VERTEX_SHADER,
+  source: vertex_source
+});
+
+//fragment shader
+const fragment_source = document.getElementById("2d-fragment-shader").textContent;
+const fragmentShader = new EngineBase.Shader(gl,{
+  type: gl.FRAGMENT_SHADER,
+  source: fragment_source
+});
+
+//create program
+const program = new EngineBase.Program(gl,{
+  vertexShader: vertexShader.shader,
+  fragmentShader: fragmentShader.shader,
+});
+//set attributes
+program.setAttribute('a_position', positionBuffer, {
+    size:2,
+    type:gl.FLOAT,
+    normalize:false,
+    stride:0,
+    offset:0
+  });
+program.setAttribute('a_color',colorBuffer,{
+    size:3,
+    type:gl.FLOAT,
+    normalize:false,
+    stride:0,
+    offset:0
+  }
+);
+
+//set uniform
+const resolution = [canvasWidth,canvasHeight];
+program.setUniform('u_resolution','FLOAT',resolution,2);
+
+//draw
+gl.viewport(0,0,canvasWidth,canvasHeight);
+gl.clearColor(0,0,0,1);
+gl.clear(gl.COLOR_BUFFER_BIT);
+
+program.draw({
+  drawMode: gl.TRIANGLES,
+  offset: 0,
+  count: 60
+});
+
+
+function createRects(){
+  const length = 12 * rectNum;
+  const data = new Float32Array(length);
+  for(let i=0; i<length; i+=12){
+    const x1 = Math.random() * canvasWidth;
+    const y1 = Math.random() * canvasHeight;
+    const width = 10 + Math.random() * 100;
+    const height = 10 + Math.random() * 100;
+    const x2 = x1+width;
+    const y2 = y1+height;
+    //triangle 1
+    //v1
+    data[i] = x2;
+    data[i+1] = y1;
+    //v2
+    data[i+2] = x1;
+    data[i+3] = y2;
+    //v3
+    data[i+4] = x2;
+    data[i+5] = y2;
+
+    //triangle 2
+    //v1
+    data[i+6] = x1;
+    data[i+7] = y1;
+    //v2
+    data[i+8] = x2;
+    data[i+9] = y1;
+    //v3
+    data[i+10] = x1;
+    data[i+11] = y2;
+  }
+  return data;
+}
+
+function createColors(){
+  const length = 18 * rectNum;
+  const data = new Float32Array(length);
+  for(let i=0; i<length; i+=18){
+    //每个rect一个颜色
+    const r = Math.random();
+    const g = Math.random();
+    const b = Math.random();
+    for(let index=0; index<18; index+=3){
+      data[i+index] = r;
+      data[i+index+1] = g;
+      data[i+index+2] = b;
+    }
+  }
+
+  return data;
+}
+</script>
+
+</html>
